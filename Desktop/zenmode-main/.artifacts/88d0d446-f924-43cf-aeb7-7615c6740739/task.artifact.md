@@ -1,0 +1,5 @@
+- [ ] Version Catalog Optimization (camelCase)
+- [ ] Root Build Script Update
+- [ ] App Module Update (Plugins and Kover DSL)
+- [ ] Core-API Module Update (Plugins and Catalog Sharing)
+- [ ] Gradle Sync and Verification
