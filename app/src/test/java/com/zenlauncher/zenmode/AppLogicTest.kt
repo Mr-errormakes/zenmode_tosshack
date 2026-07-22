@@ -14,14 +14,14 @@ class AppLogicTest {
 
     @Test
     fun `getMoodState returns NEUTRAL when minutes are moderate`() {
-        // 60 mins → percentage = (120-60)/120*100 = 50% → >= 40% NEUTRAL but < 70% HAPPY
-        val mood = AppLogic.getMoodState(60L)
+        // 150 mins → between 120 and 210 minutes
+        val mood = AppLogic.getMoodState(150L)
         assertEquals(MoodState.NEUTRAL, mood)
     }
 
     @Test
     fun `getMoodState returns ANNOYED when minutes above neutral threshold`() {
-        val mood = AppLogic.getMoodState(AppConstants.THRESHOLD_NEUTRAL_MINUTES.toLong())
+        val mood = AppLogic.getMoodState(AppConstants.THRESHOLD_NEUTRAL_MINUTES.toLong() + 10)
         assertEquals(MoodState.ANNOYED, mood)
     }
 
@@ -30,14 +30,14 @@ class AppLogicTest {
         // 0 minutes -> 100%
         assertEquals(100, AppLogic.getMindfulnessPercentage(0L))
         
-        // 60 minutes -> 50%
-        assertEquals(50, AppLogic.getMindfulnessPercentage(60L))
+        // 105 minutes -> 50% (under 210 minutes max)
+        assertEquals(50, AppLogic.getMindfulnessPercentage(105L))
         
-        // 120 minutes -> 0%
-        assertEquals(0, AppLogic.getMindfulnessPercentage(120L))
+        // 210 minutes -> 0%
+        assertEquals(0, AppLogic.getMindfulnessPercentage(210L))
         
-        // > 120 minutes -> 0%
-        assertEquals(0, AppLogic.getMindfulnessPercentage(150L))
+        // > 210 minutes -> 0%
+        assertEquals(0, AppLogic.getMindfulnessPercentage(250L))
     }
 
     @Test
@@ -45,10 +45,7 @@ class AppLogicTest {
         // High percentage -> Happy color
         assertEquals(R.color.zen_mindfulness_happy, AppLogic.getMindfulnessColor(0L))
         
-        // Medium percentage -> Neutral color (Assuming logic from AppLogic)
-        // Let's check boundary. If 100% is happy.
-        
         // Low percentage -> Annoyed color
-        assertEquals(R.color.zen_mindfulness_annoyed, AppLogic.getMindfulnessColor(120L))
+        assertEquals(R.color.zen_mindfulness_annoyed, AppLogic.getMindfulnessColor(220L))
     }
 }

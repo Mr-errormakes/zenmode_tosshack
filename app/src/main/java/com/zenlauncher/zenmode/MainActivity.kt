@@ -90,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (isFinishing) return
         if (::viewModel.isInitialized) {
             viewModel.onResumeCheck()
             viewModel.refreshBuddyStatsFromCache()
@@ -104,16 +105,20 @@ class MainActivity : AppCompatActivity() {
             val interval = AppConstants.STATS_SYNC_INTERVAL_MINUTES * 60 * 1000L
 
             if (now - lastProcessed > interval) {
-                val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
-                val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
-                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
-                    .build()
-                androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
-                    "ManualStatSync",
-                    androidx.work.ExistingWorkPolicy.REPLACE,
-                    syncRequest
-                )
-                repository.updateLastStatsProcessedTime(now)
+                try {
+                    val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
+                    val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
+                        .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                        .build()
+                    androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
+                        "ManualStatSync",
+                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        syncRequest
+                    )
+                    repository.updateLastStatsProcessedTime(now)
+                } catch (e: ClassNotFoundException) {
+                    android.util.Log.w("MainActivity", "StatSyncWorker not found (private module missing). Skipping sync.")
+                }
             }
         }
     }
@@ -227,7 +232,7 @@ class MainActivity : AppCompatActivity() {
 
         // Observe delayed unlock navigation (non-Compose, stays as LiveData observer)
         viewModel.navigateToDelayedUnlock.observe(this) { shouldNavigate ->
-            if (shouldNavigate) {
+            if (shouldNavigate && !isFinishing) {
                 val delayedIntent = Intent(this, DelayedUnlockActivity::class.java)
                 delayedIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(delayedIntent)

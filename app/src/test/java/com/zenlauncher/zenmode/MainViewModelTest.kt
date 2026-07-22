@@ -6,6 +6,7 @@ import com.zenlauncher.zenmode.coreapi.UsageRepository
 import com.zenlauncher.zenmode.coreapi.services.FirestoreDataSource
 import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
 import org.junit.Assert.assertEquals
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -13,7 +14,13 @@ import org.mockito.Mockito.mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
 
     @get:Rule
@@ -21,13 +28,22 @@ class MainViewModelTest {
 
     @Before
     fun setup() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         // MainViewModel accesses ServiceLocator.firestoreDataSource in init
         if (!ServiceLocator.isInitialized) {
             ServiceLocator.firestoreDataSource = mock<FirestoreDataSource>()
             ServiceLocator.analyticsManager = mock()
             ServiceLocator.analyticsTracker = mock()
             ServiceLocator.authProvider = mock()
+            val remoteConfig = mock<com.zenlauncher.zenmode.coreapi.services.RemoteConfigProvider>()
+            whenever(remoteConfig.minVersionCode).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(0L))
+            ServiceLocator.remoteConfigProvider = remoteConfig
         }
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -52,7 +68,7 @@ class MainViewModelTest {
         viewModel.onScreenUnlocked()
         viewModel.onScreenLocked()
 
-        verify(repository).setZenUnlockFlag(false)
+        verify(repository, org.mockito.kotlin.times(2)).setZenUnlockFlag(false)
         verify(repository).updateScreenTime(any())
     }
 

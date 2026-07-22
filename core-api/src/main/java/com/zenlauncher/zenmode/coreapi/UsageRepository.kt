@@ -9,8 +9,13 @@ import java.util.Date
 import java.util.Locale
 
 import com.zenlauncher.zenmode.coreapi.analytics.AnalyticsManager
+import kotlinx.coroutines.runBlocking
 
-class UsageRepository(private val context: Context, private val analyticsManager: AnalyticsManager) {
+class UsageRepository(
+    private val context: Context,
+    private val analyticsManager: AnalyticsManager,
+    private val usageDao: UsageDao = ZenDatabase.getDatabase(context).usageDao()
+) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("zen_mode_stats", Context.MODE_PRIVATE)
 
@@ -18,41 +23,28 @@ class UsageRepository(private val context: Context, private val analyticsManager
         if (duration <= 0) return
 
         val today = getTodayDate()
-        val savedDate = prefs.getString("last_date_screentime", "")
 
-        // Archive previous day's screen time before resetting
-        if (savedDate != null && savedDate.isNotEmpty() && savedDate != today) {
-            val archiveKey = "screen_time_$savedDate"
-            if (!prefs.contains(archiveKey)) {
-                val previousDayTotal = prefs.getLong("daily_screen_time", 0L)
-                if (previousDayTotal > 0) {
-                    prefs.edit().putLong(archiveKey, previousDayTotal).apply()
-                }
+        runBlocking {
+            val currentCachedParams = usageDao.getScreenTimeForDate(today)?.screenTimeInMillis ?: 0L
+
+            // Try to get real-time stats first
+            val realTimeFn = getRealTimeScreenTime()
+
+            val totalTime: Long = if (realTimeFn > 0) {
+                // System tracking is working and returning valid data.
+                // Use this as the source of truth.
+                realTimeFn
+            } else {
+                 // Fallback to manual accumulation
+                 currentCachedParams + duration
             }
-        }
 
-        // Try to get real-time stats first
-        val realTimeFn = getRealTimeScreenTime()
-        val currentCachedParams = if (savedDate == today) prefs.getLong("daily_screen_time", 0) else 0
-
-        var totalTime: Long
-        if (realTimeFn > 0) {
-            // System tracking is working and returning valid data.
-            // Use this as the source of truth.
-            totalTime = realTimeFn
-        } else {
-             // Fallback to manual accumulation
-             totalTime = currentCachedParams + duration
-        }
-
-        // CRITICAL: Only update if the new total is greater than what we already have.
-        // This prevents overwriting a high value with a low value (if system stats lag or error),
-        // and ensures strictly increasing semantics.
-        if (totalTime > currentCachedParams) {
-            prefs.edit()
-                .putLong("daily_screen_time", totalTime)
-                .putString("last_date_screentime", today)
-                .apply()
+            // CRITICAL: Only update if the new total is greater than what we already have.
+            // This prevents overwriting a high value with a low value (if system stats lag or error),
+            // and ensures strictly increasing semantics.
+            if (totalTime > currentCachedParams) {
+                usageDao.insert(DailyUsageEntity(today, totalTime))
+            }
         }
     }
 
@@ -142,15 +134,18 @@ class UsageRepository(private val context: Context, private val analyticsManager
         val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
         val yesterdayDate = dateFormat.format(yesterdayCal.time)
 
-        val cacheKey = "screen_time_$yesterdayDate"
-        val cached = prefs.getLong(cacheKey, 0L)
-        if (cached > 0L) return cached
-
-        val queried = getScreenTimeForDay(yesterdayDate)
-        if (queried > 0L) {
-            prefs.edit().putLong(cacheKey, queried).apply()
+        return runBlocking {
+            val cached = usageDao.getScreenTimeForDate(yesterdayDate)?.screenTimeInMillis ?: 0L
+            if (cached > 0L) {
+                cached
+            } else {
+                val queried = getScreenTimeForDay(yesterdayDate)
+                if (queried > 0L) {
+                    usageDao.insert(DailyUsageEntity(yesterdayDate, queried))
+                }
+                queried
+            }
         }
-        return queried
     }
 
     fun getWeeklyScreenTimeMillis(): List<Long> {
@@ -159,46 +154,36 @@ class UsageRepository(private val context: Context, private val analyticsManager
 
         val result = mutableListOf<Long>()
 
-        for (daysAgo in 6 downTo 0) {
-            val cal = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, -daysAgo)
-            }
-            val dateString = dateFormat.format(cal.time)
+        runBlocking {
+            for (daysAgo in 6 downTo 0) {
+                val cal = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_YEAR, -daysAgo)
+                }
+                val dateString = dateFormat.format(cal.time)
 
-            val millis: Long = if (dateString == today) {
-                getTodayUsage().screenTimeInMillis
-            } else {
-                val cacheKey = "screen_time_$dateString"
-                val cached = prefs.getLong(cacheKey, 0L)
-                if (cached > 0L) {
-                    cached
+                val millis: Long = if (dateString == today) {
+                    getTodayUsage().screenTimeInMillis
                 } else {
-                    val queried = getScreenTimeForDay(dateString)
-                    if (queried > 0L) {
-                        prefs.edit().putLong(cacheKey, queried).apply()
+                    val cached = usageDao.getScreenTimeForDate(dateString)?.screenTimeInMillis ?: 0L
+                    if (cached > 0L) {
+                        cached
+                    } else {
+                        val queried = getScreenTimeForDay(dateString)
+                        if (queried > 0L) {
+                            usageDao.insert(DailyUsageEntity(dateString, queried))
+                        }
+                        queried
                     }
-                    queried
                 }
+
+                result.add(millis)
             }
 
-            result.add(millis)
+            // Cleanup stale entries older than 7 days
+            val cutoffCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -7) }
+            val cutoffDate = dateFormat.format(cutoffCal.time)
+            usageDao.pruneStaleEntries(cutoffDate)
         }
-
-        // Cleanup stale entries older than 7 days
-        val cutoffCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -7) }
-        val cutoffDate = dateFormat.format(cutoffCal.time)
-        val editor = prefs.edit()
-        var hasRemovals = false
-        for (key in prefs.all.keys) {
-            if (key.startsWith("screen_time_") && key.length == 22) {
-                val dateStr = key.removePrefix("screen_time_")
-                if (dateStr < cutoffDate) {
-                    editor.remove(key)
-                    hasRemovals = true
-                }
-            }
-        }
-        if (hasRemovals) editor.apply()
 
         return result
     }
@@ -209,9 +194,9 @@ class UsageRepository(private val context: Context, private val analyticsManager
 
     fun getTodayUsage(): DailyUsage {
         val today = getTodayDate()
-
-        val savedDateScreenTime = prefs.getString("last_date_screentime", "")
-        var screenTimeInMillis = if (savedDateScreenTime == today) prefs.getLong("daily_screen_time", 0) else 0
+        var screenTimeInMillis = runBlocking {
+            usageDao.getScreenTimeForDate(today)?.screenTimeInMillis ?: 0L
+        }
 
         // Try to get real-time stats
         try {
@@ -220,12 +205,9 @@ class UsageRepository(private val context: Context, private val analyticsManager
             // This handles the case where the user is actively using the device (so cache is stale/lower).
             if (realTimeFn > 0 && realTimeFn > screenTimeInMillis) {
                 screenTimeInMillis = realTimeFn
-
-                // Sync back to prefs so UI and other components see it
-                prefs.edit()
-                    .putLong("daily_screen_time", screenTimeInMillis)
-                    .putString("last_date_screentime", today)
-                    .apply()
+                runBlocking {
+                    usageDao.insert(DailyUsageEntity(today, screenTimeInMillis))
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -510,5 +492,8 @@ class UsageRepository(private val context: Context, private val analyticsManager
 
     fun clearAllData() {
         prefs.edit().clear().apply()
+        runBlocking {
+            usageDao.clearAll()
+        }
     }
 }

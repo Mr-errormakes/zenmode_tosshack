@@ -114,4 +114,5 @@ class MockAnalyticsTracker : AnalyticsTrackerContract {
 class MockAnalyticsManager : AnalyticsManager {
     override fun trackEvent(eventName: String, properties: Map<String, Any>?) {}
     override fun identifyUser(userId: String, properties: Map<String, Any>?) {}
+    override fun reset() {}
 }
