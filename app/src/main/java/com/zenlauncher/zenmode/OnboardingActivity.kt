@@ -1,5 +1,6 @@
 package com.zenlauncher.zenmode
 
+import com.zenlauncher.zenmode.R
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager2.widget.ViewPager2
