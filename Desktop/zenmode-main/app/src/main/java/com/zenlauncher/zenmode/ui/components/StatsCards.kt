@@ -143,11 +143,11 @@ fun StatsCardsRow(
 
             // Flash icon between cards
             Image(
-                painter = painterResource(R.drawable.flash),
-                contentDescription = null,
+                painter = painterResource(R.drawable.zm_ic_bolt),
+                contentDescription = "Lightning bolt streak icon",
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .width(21.dp)
+                    .size(24.dp)
+                    .offset(x = 10.dp, y = (-20).dp)
                     .height(35.dp)
                     .zIndex(1f)
             )
@@ -479,10 +479,11 @@ fun ReactBadge(
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(R.drawable.heart_react),
+                painter = painterResource(R.drawable.zm_ic_heart),
                 contentDescription = "React",
                 modifier = Modifier.size(size * 0.6f),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.Fit,
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.textPrimary)
             )
         }
 

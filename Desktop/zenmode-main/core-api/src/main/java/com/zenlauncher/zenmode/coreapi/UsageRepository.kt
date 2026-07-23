@@ -184,8 +184,8 @@ class UsageRepository(private val context: Context, private val analyticsManager
             result.add(millis)
         }
 
-        // Cleanup stale entries older than 7 days
-        val cutoffCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -7) }
+        // Cleanup stale entries older than 45 days (was 7 days)
+        val cutoffCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -45) }
         val cutoffDate = dateFormat.format(cutoffCal.time)
         val editor = prefs.edit()
         var hasRemovals = false
@@ -201,6 +201,49 @@ class UsageRepository(private val context: Context, private val analyticsManager
         if (hasRemovals) editor.apply()
 
         return result
+    }
+
+    fun getPast30DaysScreenTimeMillis(): List<Long> {
+        val today = getTodayDate()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val result = mutableListOf<Long>()
+
+        for (daysAgo in 29 downTo 0) {
+            val cal = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, -daysAgo)
+            }
+            val dateString = dateFormat.format(cal.time)
+
+            val millis: Long = if (dateString == today) {
+                getTodayUsage().screenTimeInMillis
+            } else {
+                val cacheKey = "screen_time_$dateString"
+                val cached = prefs.getLong(cacheKey, 0L)
+                if (cached > 0L) {
+                    cached
+                } else {
+                    val queried = getScreenTimeForDay(dateString)
+                    if (queried > 0L) {
+                        prefs.edit().putLong(cacheKey, queried).apply()
+                    }
+                    queried
+                }
+            }
+
+            result.add(millis)
+        }
+        return result
+    }
+
+    fun getPast30DaysScreenTimeHours(): List<Float> {
+        return getPast30DaysScreenTimeMillis().map { it / 3_600_000f }
+    }
+
+    fun trackSessionFeedback(isMindful: Boolean) {
+        val key = if (isMindful) "feedback_mindful_count" else "feedback_regret_count"
+        val currentCount = prefs.getInt(key, 0)
+        prefs.edit().putInt(key, currentCount + 1).apply()
+        analyticsManager.trackEvent("session_feedback", mapOf("type" to if (isMindful) "mindful" else "regret"))
     }
 
     fun getWeeklyScreenTimeHours(): List<Float> {

@@ -28,6 +28,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
@@ -45,6 +47,7 @@ import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
 import com.zenlauncher.zenmode.ui.screens.AccessibilityDisclosureScreen
 import com.zenlauncher.zenmode.ui.screens.AccountabilityScreen
 import com.zenlauncher.zenmode.ui.screens.BuddyAddResult
+import com.zenlauncher.zenmode.ui.screens.FocusSessionSheet
 import com.zenlauncher.zenmode.ui.screens.ForceUpdateDialog
 import com.zenlauncher.zenmode.ui.screens.HomeScreen
 import com.zenlauncher.zenmode.ui.screens.ZenBuddyConnectBottomSheet
@@ -61,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private var showBuddyConnect by mutableStateOf(false)
     private var showBuddyBattle by mutableStateOf(false)
     private var showAccessibilityDisclosure by mutableStateOf(false)
+    private var showFocusSheet by mutableStateOf(false)
     private lateinit var accountabilityViewModel: AccountabilityViewModel
 
     private val screenReceiver = object : android.content.BroadcastReceiver() {
@@ -104,16 +108,20 @@ class MainActivity : AppCompatActivity() {
             val interval = AppConstants.STATS_SYNC_INTERVAL_MINUTES * 60 * 1000L
 
             if (now - lastProcessed > interval) {
-                val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
-                val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
-                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
-                    .build()
-                androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
-                    "ManualStatSync",
-                    androidx.work.ExistingWorkPolicy.REPLACE,
-                    syncRequest
-                )
-                repository.updateLastStatsProcessedTime(now)
+                try {
+                    val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
+                    val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
+                        .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                        .build()
+                    androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
+                        "ManualStatSync",
+                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        syncRequest
+                    )
+                    repository.updateLastStatsProcessedTime(now)
+                } catch (e: ClassNotFoundException) {
+                    android.util.Log.w("MainActivity", "StatSyncWorker not found. Skipping manual sync.")
+                }
             }
         }
     }
@@ -265,6 +273,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val accountabilityUiState by accountabilityViewModel.uiState.observeAsState(AccountabilityUiState())
                 val showForceUpdate by viewModel.showForceUpdateDialog.collectAsState(initial = false)
+                val focusSession by viewModel.focusSession.collectAsState(initial = null)
 
                 if (showForceUpdate) {
                     ForceUpdateDialog(
@@ -318,7 +327,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val weeklyMillis = remember { repository.getWeeklyScreenTimeMillis() }
-                val streakCount = remember { AppLogic.getStreakCount(weeklyMillis) }
+                val past30DaysMillis = remember { repository.getPast30DaysScreenTimeMillis() }
+                val streakCount = remember { AppLogic.getStreakCount(past30DaysMillis) }
 
                 HomeScreen(
                     usage = usage,
@@ -331,11 +341,13 @@ class MainActivity : AppCompatActivity() {
                     showSearch = showSearch,
                     myLikes = myLikes,
                     buddyLikes = buddyLikes,
+                    focusSession = focusSession,
                     onLikeClick = { viewModel.sendLike() },
                     onShowSearchChange = { showSearch = it },
                     onSettingsClick = {
                         startActivity(Intent(this, SettingsActivity::class.java))
                     },
+                    onFocusClick = { showFocusSheet = true },
                     onGoogleSearch = { query ->
                         val searchIntent = Intent(Intent.ACTION_WEB_SEARCH).apply {
                             putExtra(android.app.SearchManager.QUERY, query)
@@ -356,9 +368,7 @@ class MainActivity : AppCompatActivity() {
                         ServiceLocator.analyticsTracker.trackBuddyShareStarted("manual")
                         showBuddyConnect = true
                     },
-                    onBuddyCardClick = if (hasBuddies) {
-                        { showBuddyBattle = true }
-                    } else null,
+                    onBuddyCardClick = { showBuddyBattle = true }, // DEBUG: always open accountability overlay
                     onSignInClick = {
                         val intent = Intent(this, OnboardingActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -468,6 +478,32 @@ class MainActivity : AppCompatActivity() {
                         },
                         onDismiss = { showBuddyConnect = false }
                     )
+                }
+
+                // Focus Session sheet overlay
+                if (showFocusSheet) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f))
+                                .clickable { showFocusSheet = false }
+                        )
+                        FocusSessionSheet(
+                            activeSession = focusSession,
+                            onStartSession = { durationMins ->
+                                viewModel.startFocusSession(this@MainActivity, durationMins)
+                                showFocusSheet = false
+                            },
+                            onEndSession = {
+                                viewModel.endFocusSession(this@MainActivity)
+                                showFocusSheet = false
+                            }
+                        )
+                    }
                 }
             }
         }

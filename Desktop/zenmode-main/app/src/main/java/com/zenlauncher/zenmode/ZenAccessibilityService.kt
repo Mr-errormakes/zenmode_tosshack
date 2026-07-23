@@ -18,6 +18,10 @@ class ZenAccessibilityService : AccessibilityService() {
 
         fun isRunning(): Boolean = instance != null
 
+        fun isMindlessScrollingActive(): Boolean {
+            return instance?.isMindless ?: false
+        }
+
         fun isEnabledInSettings(context: Context): Boolean {
             val enabledServices = Settings.Secure.getString(
                 context.contentResolver,
@@ -28,13 +32,41 @@ class ZenAccessibilityService : AccessibilityService() {
         }
     }
 
+    private var isMindless = false
+    private val lastScrollTimes = ArrayList<Long>()
+    private var lastInteractionTime = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No-op — service is used for global actions only
+        if (event == null) return
+        
+        val now = System.currentTimeMillis()
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+                lastScrollTimes.removeAll { now - it > 60000L }
+                lastScrollTimes.add(now)
+                evaluateMindlessState(now)
+            }
+            AccessibilityEvent.TYPE_VIEW_CLICKED,
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                lastInteractionTime = now
+                isMindless = false
+            }
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                lastScrollTimes.clear()
+                lastInteractionTime = now
+                isMindless = false
+            }
+        }
+    }
+
+    private fun evaluateMindlessState(now: Long) {
+        val timeSinceLastInteraction = now - lastInteractionTime
+        isMindless = (lastScrollTimes.size >= 6) && (timeSinceLastInteraction > 12000L)
     }
 
     override fun onInterrupt() {

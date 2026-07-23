@@ -555,7 +555,7 @@ private fun CountdownCircle(
 
     // Pick the stage drawable based on elapsed seconds
     val aroundTimeRes = when {
-        countdownFinished -> R.drawable.resistence_screen_around_time
+        countdownFinished || totalSeconds <= 0 -> R.drawable.resistence_screen_around_time
         else -> {
             val t2 = (totalSeconds * 2.0 / 7).toInt().coerceAtLeast(1)
             val t4 = (totalSeconds * 4.0 / 7).toInt().coerceAtLeast(2)
@@ -614,7 +614,7 @@ private fun ResistenceBottomDock(
     ) {
         // Settings
         Image(
-            painter = painterResource(R.drawable.ic_settings),
+            painter = painterResource(R.drawable.zm_ic_settings),
             contentDescription = "Settings",
             modifier = Modifier
                 .size(32.rdp)

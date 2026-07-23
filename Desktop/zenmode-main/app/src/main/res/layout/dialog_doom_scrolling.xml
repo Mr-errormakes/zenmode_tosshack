@@ -107,45 +107,92 @@
             android:layout_marginTop="24dp"
             app:layout_constraintTop_toBottomOf="@id/tv_subtitle_2" />
 
-        <!-- Checkbox -->
+        <!-- Feedback Question -->
+        <TextView
+            android:id="@+id/tv_feedback_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Was this scrolling session mindful?"
+            android:textSize="16sp"
+            android:fontFamily="@font/cabinet_grotesk_medium"
+            android:textColor="#A3A3A3"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_body_quote" />
+
         <LinearLayout
-            android:id="@+id/checkbox_container"
+            android:id="@+id/feedback_buttons_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="32dp"
-            app:layout_constraintTop_toBottomOf="@id/tv_body_quote">
+            android:gravity="center"
+            android:layout_marginTop="12dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_feedback_title">
 
-            <CheckBox
-                android:id="@+id/cb_remember"
+            <Button
+                android:id="@+id/btn_feedback_mindful"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:buttonTint="@color/white"
-                android:minWidth="0dp"
-                android:minHeight="0dp" />
+                android:text="Intentional 👍"
+                android:backgroundTint="#B9E234"
+                android:textColor="#000000"
+                android:fontFamily="@font/cabinet_grotesk_bold"
+                android:layout_marginEnd="16dp" />
 
-            <TextView
+            <Button
+                android:id="@+id/btn_feedback_regret"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Remember, don't remind for next 4 hours"
-                android:textSize="16sp"
-                android:fontFamily="@font/cabinet_grotesk_regular"
-                android:textColor="#E0E0E0"
-                android:layout_marginStart="8dp" />
+                android:text="Regretted 👎"
+                android:backgroundTint="#F16351"
+                android:textColor="#FFFFFF"
+                android:fontFamily="@font/cabinet_grotesk_bold" />
 
         </LinearLayout>
 
-        <!-- Main Button -->
-        <ImageView
-            android:id="@+id/btn_action"
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:id="@+id/actions_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="45dp"
-            android:src="@drawable/button_close_app"
-            android:scaleType="fitXY"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/checkbox_container" />
+            android:orientation="vertical"
+            android:layout_marginTop="20dp"
+            app:layout_constraintTop_toBottomOf="@id/feedback_buttons_container">
+
+            <Button
+                android:id="@+id/btn_close_app"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Close App &amp; Reclaim Zen"
+                android:backgroundTint="#00C700"
+                android:textColor="#000000"
+                android:textSize="16sp"
+                android:fontFamily="@font/cabinet_grotesk_bold"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btn_snooze_5m"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Just 5 more minutes"
+                android:backgroundTint="#252525"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="@font/cabinet_grotesk_medium"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/btn_snooze_4h"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                 android:text="Ignore alert for next 4 hours"
+                android:textColor="#A3A3A3"
+                android:textSize="12sp"
+                android:fontFamily="@font/cabinet_grotesk_regular"
+                android:padding="8dp" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

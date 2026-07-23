@@ -34,6 +34,15 @@ class ZenNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        sbn?.let { notification ->
+            // If focus session is active, cancel notifications from distracting apps
+            val isFocusActive = FocusSessionRepository.isSessionActive(applicationContext)
+            if (isFocusActive && !notification.isOngoing && notification.packageName != packageName) {
+                if (DistractingAppsRepository.isDistracting(applicationContext, packageManager, notification.packageName)) {
+                    cancelNotification(notification.key)
+                }
+            }
+        }
         rebuildCounts()
     }
 
@@ -53,14 +62,17 @@ class ZenNotificationListenerService : NotificationListenerService() {
         } catch (_: Exception) {
             return
         }
+        val isFocusActive = FocusSessionRepository.isSessionActive(applicationContext)
         val counts = mutableMapOf<String, Int>()
         for (sbn in active) {
             // Skip ongoing notifications (music players, VPNs, etc.)
             // and skip our own notifications
-            if (!sbn.isOngoing && sbn.packageName != packageName) {
-                val pkg = sbn.packageName
-                counts[pkg] = (counts[pkg] ?: 0) + 1
-            }
+            if (sbn.isOngoing || sbn.packageName == packageName) continue
+            // During a focus session, mute badges from distracting apps
+            if (isFocusActive && DistractingAppsRepository.isDistracting(
+                    applicationContext, packageManager, sbn.packageName)) continue
+            val pkg = sbn.packageName
+            counts[pkg] = (counts[pkg] ?: 0) + 1
         }
         notificationCounts.clear()
         notificationCounts.putAll(counts)

@@ -181,14 +181,13 @@ private fun SettingsHeader(
     ) {
         // Back button — left
         Image(
-            painter = painterResource(R.drawable.button_back),
+            painter = painterResource(R.drawable.zm_ic_arrow_back),
             contentDescription = "Back",
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .clip(RoundedCornerShape(20.dp))
-                .clickable { onBackClick() }
-                .height(36.rdp),
-            contentScale = ContentScale.Fit
+                .size(24.dp)
+                .clickable { onBackClick() },
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.textPrimary)
         )
 
         // App icon — center

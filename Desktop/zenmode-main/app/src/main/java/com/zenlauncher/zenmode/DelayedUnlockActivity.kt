@@ -27,9 +27,9 @@ class DelayedUnlockActivity : AppCompatActivity() {
     // Compose state
     private var usage by mutableStateOf<DailyUsage?>(null)
     private var yesterdayChangePercent by mutableStateOf<Int?>(null)
-    private var countdownSeconds by mutableIntStateOf(1)
+    private var countdownSeconds by mutableIntStateOf(AppConstants.COUNTDOWN_SECONDS)
     private var countdownFinished by mutableStateOf(false)
-    private var currentProgress by mutableIntStateOf(1)
+    private var currentProgress by mutableIntStateOf(AppConstants.COUNTDOWN_SECONDS)
     private var skipsLeft by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,6 +98,13 @@ class DelayedUnlockActivity : AppCompatActivity() {
     }
 
     private fun startCountdown() {
+        if (totalTimeMs <= 0L) {
+            countdownSeconds = 0
+            currentProgress = 0
+            countdownFinished = true
+            finishUnlock()
+            return
+        }
         timer = object : CountDownTimer(totalTimeMs, intervalMs) {
             override fun onTick(millisUntilFinished: Long) {
                 val secondsRemaining = millisUntilFinished / 1000

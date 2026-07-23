@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import com.zenlauncher.zenmode.coreapi.UsageRepository
 import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
 
 class DoomScrollingMonitorService : Service() {
@@ -30,6 +31,7 @@ class DoomScrollingMonitorService : Service() {
     private var wasActionTaken = false
     private lateinit var usageStatsManager: UsageStatsManager
     private lateinit var windowManager: WindowManager
+    private lateinit var usageRepository: UsageRepository
     private var overlayView: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private val checkInterval = 30000L // 30 seconds
@@ -52,6 +54,7 @@ class DoomScrollingMonitorService : Service() {
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        usageRepository = UsageRepository(applicationContext, ServiceLocator.analyticsManager)
         
         startForegroundServiceNotification()
         startMonitoring()
@@ -137,7 +140,10 @@ class DoomScrollingMonitorService : Service() {
                     }
                     
                     val sessionDuration = System.currentTimeMillis() - currentDoomSessionStart
-                    if (sessionDuration > usageThreshold) {
+                    val isMindless = ZenAccessibilityService.isMindlessScrollingActive()
+                    val currentThreshold = if (isMindless) 4 * 60 * 1000L else usageThreshold
+
+                    if (sessionDuration > currentThreshold) {
                         showOverlay()
                     }
                 } else {
@@ -205,34 +211,67 @@ class DoomScrollingMonitorService : Service() {
         val inflater = LayoutInflater.from(this)
         overlayView = inflater.inflate(R.layout.dialog_doom_scrolling, null)
 
-        val actionButton = overlayView?.findViewById<android.widget.ImageView>(R.id.btn_action)
-        val checkbox = overlayView?.findViewById<android.widget.CheckBox>(R.id.cb_remember)
+        val friendlyNudges = listOf(
+            "Hey, just checking in. You've been scrolling for 15m. Want to take a stretch? 🧘‍♂️",
+            "Screen time check-in! Breathe in, breathe out. Let's head back to the real world? 🌿",
+            "Your eyes might need a break! Let's close this app for now? 👀",
+            "Autopilot mode check! Are you finding what you're looking for, or just scrolling? 🤔",
+            "Bro, your focus buddy needs you. Close me, reclaim your zen! 💜"
+        )
+        val selectedNudge = friendlyNudges.random()
+        val bodyQuote = overlayView?.findViewById<android.widget.TextView>(R.id.tv_body_quote)
+        bodyQuote?.text = selectedNudge
 
-        checkbox?.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                actionButton?.setImageResource(R.drawable.button_remember)
-                ServiceLocator.analyticsTracker.trackRememberMeSelected("4h")
-            } else {
-                actionButton?.setImageResource(R.drawable.button_close_app)
-            }
+        val btnFeedbackMindful = overlayView?.findViewById<android.widget.Button>(R.id.btn_feedback_mindful)
+        val btnFeedbackRegret = overlayView?.findViewById<android.widget.Button>(R.id.btn_feedback_regret)
+        val btnCloseApp = overlayView?.findViewById<android.widget.Button>(R.id.btn_close_app)
+        val btnSnooze5m = overlayView?.findViewById<android.widget.Button>(R.id.btn_snooze_5m)
+        val btnSnooze4h = overlayView?.findViewById<android.widget.TextView>(R.id.btn_snooze_4h)
+
+        btnFeedbackMindful?.setOnClickListener {
+            usageRepository.trackSessionFeedback(true)
+            android.widget.Toast.makeText(this, "Logged as Mindful! 👍", android.widget.Toast.LENGTH_SHORT).show()
+            btnFeedbackMindful.isEnabled = false
+            btnFeedbackRegret?.isEnabled = false
         }
 
-        actionButton?.setOnClickListener {
-            // Apply Snooze if checked
-            if (checkbox?.isChecked == true) {
-                val fourHoursMs = 4 * 60 * 60 * 1000L
-                prefs.edit().putLong(KEY_SNOOZE_UNTIL, System.currentTimeMillis() + fourHoursMs).apply()
-            }
+        btnFeedbackRegret?.setOnClickListener {
+            usageRepository.trackSessionFeedback(false)
+            android.widget.Toast.makeText(this, "Logged as Regretted! 👎", android.widget.Toast.LENGTH_SHORT).show()
+            btnFeedbackMindful?.isEnabled = false
+            btnFeedbackRegret.isEnabled = false
+        }
 
+        btnCloseApp?.setOnClickListener {
             val startMain = Intent(Intent.ACTION_MAIN)
             startMain.addCategory(Intent.CATEGORY_HOME)
             startMain.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             startActivity(startMain)
 
-            // Analytics
-            val action = if (checkbox?.isChecked == true) "app_open" else "mindful"
             wasActionTaken = true
-            ServiceLocator.analyticsTracker.trackOverlayActionTaken(action)
+            ServiceLocator.analyticsTracker.trackOverlayActionTaken("mindful_exit")
+
+            resetTracking()
+            removeOverlay()
+        }
+
+        btnSnooze5m?.setOnClickListener {
+            val fiveMinutesMs = 5 * 60 * 1000L
+            prefs.edit().putLong(KEY_SNOOZE_UNTIL, System.currentTimeMillis() + fiveMinutesMs).apply()
+
+            wasActionTaken = true
+            ServiceLocator.analyticsTracker.trackOverlayActionTaken("snooze_5m")
+
+            resetTracking()
+            removeOverlay()
+        }
+
+        btnSnooze4h?.setOnClickListener {
+            val fourHoursMs = 4 * 60 * 60 * 1000L
+            prefs.edit().putLong(KEY_SNOOZE_UNTIL, System.currentTimeMillis() + fourHoursMs).apply()
+
+            wasActionTaken = true
+            ServiceLocator.analyticsTracker.trackOverlayActionTaken("snooze_4h")
 
             resetTracking()
             removeOverlay()
