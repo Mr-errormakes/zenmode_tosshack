@@ -110,6 +110,7 @@ dependencies {
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.core.testing)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.espresso.intents)
@@ -117,6 +118,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.room.runtime)
+    androidTestImplementation(libs.androidx.room.ktx)
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
 }
@@ -141,4 +144,8 @@ kover {
             }
         }
     }
+}
+
+tasks.withType<Test> {
+    systemProperty("net.bytebuddy.experimental", "true")
 }

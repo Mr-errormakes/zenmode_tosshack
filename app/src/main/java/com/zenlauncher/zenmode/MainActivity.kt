@@ -104,7 +104,12 @@ class MainActivity : AppCompatActivity() {
             val interval = AppConstants.STATS_SYNC_INTERVAL_MINUTES * 60 * 1000L
 
             if (now - lastProcessed > interval) {
-                val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
+                val workerClass = try {
+                    Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
+                } catch (e: ClassNotFoundException) {
+                    android.util.Log.w("MainActivity", "StatSyncWorker not found, skipping stats sync")
+                    return
+                }
                 val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
                     .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
                     .build()
