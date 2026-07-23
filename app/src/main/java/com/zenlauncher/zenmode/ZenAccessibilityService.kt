@@ -18,6 +18,10 @@ class ZenAccessibilityService : AccessibilityService() {
 
         fun isRunning(): Boolean = instance != null
 
+        fun isMindlessScrollingActive(): Boolean {
+            return instance?.isMindless ?: false
+        }
+
         fun isEnabledInSettings(context: Context): Boolean {
             val enabledServices = Settings.Secure.getString(
                 context.contentResolver,
@@ -28,35 +32,41 @@ class ZenAccessibilityService : AccessibilityService() {
         }
     }
 
+    private var isMindless = false
+    private val lastScrollTimes = ArrayList<Long>()
+    private var lastInteractionTime = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
-        val packageName = event.packageName?.toString() ?: return
-
-        // Skip system UI, Android launcher/system packages, and our own app package
-        if (packageName == applicationContext.packageName ||
-            packageName == "com.android.systemui" ||
-            packageName == "com.google.android.apps.nexuslauncher" ||
-            packageName.startsWith("com.android.")
-        ) {
-            return
-        }
-
-        val analyticsManager = com.zenlauncher.zenmode.coreapi.services.ServiceLocator.analyticsManager
-        val repository = com.zenlauncher.zenmode.coreapi.UsageRepository(applicationContext, analyticsManager)
-
-        // If Zen Mode is NOT unlocked, intercept app launch and trigger DelayedUnlockActivity
-        if (!repository.isZenUnlocked()) {
-            val intent = Intent(applicationContext, DelayedUnlockActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("TARGET_PACKAGE_NAME", packageName)
+        if (event == null) return
+        
+        val now = System.currentTimeMillis()
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+                lastScrollTimes.removeAll { now - it > 60000L }
+                lastScrollTimes.add(now)
+                evaluateMindlessState(now)
             }
-            applicationContext.startActivity(intent)
+            AccessibilityEvent.TYPE_VIEW_CLICKED,
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                lastInteractionTime = now
+                isMindless = false
+            }
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                lastScrollTimes.clear()
+                lastInteractionTime = now
+                isMindless = false
+            }
         }
+    }
+
+    private fun evaluateMindlessState(now: Long) {
+        val timeSinceLastInteraction = now - lastInteractionTime
+        isMindless = (lastScrollTimes.size >= 6) && (timeSinceLastInteraction > 12000L)
     }
 
     override fun onInterrupt() {

@@ -87,8 +87,7 @@ fun SettingsScreen(
     onRateClick: () -> Unit,
     onShareClick: () -> Unit,
     onLogoutClick: () -> Unit = {},
-    onDeleteAccountClick: () -> Unit = {},
-    onSwitchLauncherClick: () -> Unit = {}
+    onDeleteAccountClick: () -> Unit = {}
 ) {
     val colors = ZenTheme.colors
     val context = LocalContext.current
@@ -127,8 +126,7 @@ fun SettingsScreen(
                 onNotificationBadgesClick = onNotificationBadgesClick,
                 onChangeDistractingAppsClick = onChangeDistractingAppsClick,
                 onAccountabilityPartnerClick = onAccountabilityPartnerClick,
-                onContributeClick = onContributeClick,
-                onSwitchLauncherClick = onSwitchLauncherClick
+                onContributeClick = onContributeClick
             )
 
             Spacer(modifier = Modifier.height(28.rdp))
@@ -183,14 +181,13 @@ private fun SettingsHeader(
     ) {
         // Back button — left
         Image(
-            painter = painterResource(R.drawable.button_back),
+            painter = painterResource(R.drawable.zm_ic_arrow_back),
             contentDescription = "Back",
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .clip(RoundedCornerShape(20.dp))
-                .clickable { onBackClick() }
-                .height(36.rdp),
-            contentScale = ContentScale.Fit
+                .size(24.dp)
+                .clickable { onBackClick() },
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.textPrimary)
         )
 
         // App icon — center
@@ -439,8 +436,7 @@ private fun PersonaliseSection(
     onNotificationBadgesClick: () -> Unit,
     onChangeDistractingAppsClick: () -> Unit,
     onAccountabilityPartnerClick: () -> Unit,
-    onContributeClick: () -> Unit,
-    onSwitchLauncherClick: () -> Unit
+    onContributeClick: () -> Unit
 ) {
     val colors = ZenTheme.colors
 
@@ -504,13 +500,6 @@ private fun PersonaliseSection(
                 text = "Accountability partner settings",
                 color = colors.textBrand,
                 onClick = onAccountabilityPartnerClick
-            )
-
-            // Switch default home launcher
-            SettingsClickableItem(
-                text = "Exit ZenMode (Switch Launcher)",
-                color = colors.textBrand,
-                onClick = onSwitchLauncherClick
             )
 
             // Contribute zenmode (via GitHub)

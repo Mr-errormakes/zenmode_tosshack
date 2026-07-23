@@ -19,6 +19,9 @@ class ZenModeApp : Application() {
             initializer.initialize(this)
         }
 
+        // Schedule Daily off-screen recap notification worker
+        scheduleDailyRecap()
+
         // Track App First Open (only if ServiceLocator was populated)
         if (ServiceLocator.isInitialized) {
             val analyticsTracker = ServiceLocator.analyticsTracker
@@ -46,5 +49,36 @@ class ZenModeApp : Application() {
                 }
             }
         }
+    }
+
+    private fun scheduleDailyRecap() {
+        val dailyRecapRequest = androidx.work.PeriodicWorkRequest.Builder(
+            DailyRecapNotificationWorker::class.java,
+            24,
+            java.util.concurrent.TimeUnit.HOURS
+        )
+        .setInitialDelay(calculateInitialDelayFor9PM(), java.util.concurrent.TimeUnit.MILLISECONDS)
+        .build()
+
+        androidx.work.WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "DailyRecapWork",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            dailyRecapRequest
+        )
+    }
+
+    private fun calculateInitialDelayFor9PM(): Long {
+        val currentTime = System.currentTimeMillis()
+        val calendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = currentTime
+            set(java.util.Calendar.HOUR_OF_DAY, 21) // 9 PM
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        if (calendar.timeInMillis <= currentTime) {
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        return calendar.timeInMillis - currentTime
     }
 }

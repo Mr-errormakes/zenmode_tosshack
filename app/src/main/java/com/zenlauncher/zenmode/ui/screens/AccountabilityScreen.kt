@@ -257,11 +257,11 @@ private fun UserCodeRow(code: String, onCopyCode: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(8.rdp))
         Image(
-            painter = painterResource(R.drawable.ic_content_copy),
+            painter = painterResource(R.drawable.zm_ic_copy),
             contentDescription = "Copy code",
-            colorFilter = ColorFilter.tint(colors.textBrand),
+            colorFilter = ColorFilter.tint(colors.textSecondary),
             modifier = Modifier
-                .size(20.rdp)
+                .size(20.dp)
                 .clickable { onCopyCode() }
         )
     }

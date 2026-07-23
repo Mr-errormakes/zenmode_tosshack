@@ -5,9 +5,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.zenlauncher.zenmode.coreapi.DailyUsage
 import com.zenlauncher.zenmode.coreapi.UsageRepository
 import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +39,35 @@ class MainViewModel(private val repository: UsageRepository) : ViewModel() {
 
     private val _showForceUpdateDialog = MutableStateFlow(false)
     val showForceUpdateDialog: StateFlow<Boolean> = _showForceUpdateDialog.asStateFlow()
+
+    // ── Focus Session ──────────────────────────────────────────────
+    private val _focusSession = MutableStateFlow<FocusSession?>(null)
+    val focusSession: StateFlow<FocusSession?> = _focusSession.asStateFlow()
+
+    fun startFocusSession(context: Context, durationMinutes: Int) {
+        FocusSessionRepository.startSession(context, durationMinutes)
+        _focusSession.value = FocusSessionRepository.getActiveSession(context)
+        FocusTimerService.start(context)
+        // Tick every second so UI stays live
+        viewModelScope.launch {
+            while (true) {
+                val s = FocusSessionRepository.getActiveSession(context)
+                _focusSession.value = s
+                if (s == null) break
+                delay(1_000L)
+            }
+        }
+    }
+
+    fun endFocusSession(context: Context) {
+        FocusSessionRepository.endSession(context)
+        FocusTimerService.stop(context)
+        _focusSession.value = null
+    }
+
+    fun refreshFocusSession(context: Context) {
+        _focusSession.value = FocusSessionRepository.getActiveSession(context)
+    }
 
     private val _myLikes = MutableLiveData<Long>(0L)
     val myLikes: LiveData<Long> get() = _myLikes

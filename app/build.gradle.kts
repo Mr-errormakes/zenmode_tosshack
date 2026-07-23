@@ -2,10 +2,10 @@ import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kover)
-    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.composeCompiler)
 }
 
 val localProperties = Properties()
@@ -37,18 +37,11 @@ android {
         buildConfigField("String", "WEB_CLIENT_ID", "\"$webClientId\"")
     }
 
-    val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")
     signingConfigs {
-        if (!releaseStoreFile.isNullOrEmpty()) {
-            create("release") {
-                storeFile = file(releaseStoreFile)
-                storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
-                keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
-                keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
-            }
-        } else {
-            create("release") {
-                storeFile = file("dummy.keystore")
+        create("release") {
+            val storeFilePath = localProperties.getProperty("RELEASE_STORE_FILE") ?: ""
+            if (storeFilePath.isNotEmpty()) {
+                storeFile = file(storeFilePath)
                 storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
                 keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
                 keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
@@ -64,9 +57,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfigs.findByName("release")?.let {
-                signingConfig = it
-            }
+            signingConfig = signingConfigs.getByName("release")
 
             ndk {
                 debugSymbolLevel = "full"
@@ -114,10 +105,10 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.core.testing)
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.espresso.intents)
@@ -125,34 +116,28 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.test.rules)
-    androidTestImplementation(libs.androidx.room.runtime)
-    androidTestImplementation(libs.androidx.room.ktx)
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
 }
 
 kover {
     reports {
-        variant("debug") {
-            filters {
-                excludes {
-                    classes(
-                        "com.zenlauncher.zenmode.*Activity*",
-                        "com.zenlauncher.zenmode.*Fragment*",
-                        "com.zenlauncher.zenmode.*Adapter*",
-                        "com.zenlauncher.zenmode.*ProgressBar*"
-                    )
-                }
+        filters {
+            excludes {
+                classes(
+                    "com.zenlauncher.zenmode.*Activity*",
+                    "com.zenlauncher.zenmode.*Fragment*",
+                    "com.zenlauncher.zenmode.*Adapter*",
+                    "com.zenlauncher.zenmode.*ProgressBar*"
+                )
             }
-            verify {
-                rule {
-                    minBound(80) // Fail build if coverage is below 80%
+        }
+        verify {
+            rule {
+                bound {
+                    minValue = 80
                 }
             }
         }
     }
-}
-
-tasks.withType<Test> {
-    systemProperty("net.bytebuddy.experimental", "true")
 }

@@ -254,7 +254,7 @@ private fun TitleRow(displayCode: String, onCopyCode: () -> Unit) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Image(
-                    painter = painterResource(R.drawable.ic_content_copy),
+                    painter = painterResource(R.drawable.zm_ic_copy),
                     contentDescription = "Copy code",
                     modifier = Modifier
                         .size(16.rdp)

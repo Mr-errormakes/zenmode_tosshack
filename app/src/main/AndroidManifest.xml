@@ -74,6 +74,15 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".FocusTimerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                      android:value="focus_session_timer" />
+        </service>
+
         <activity
             android:name=".DelayedUnlockActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"

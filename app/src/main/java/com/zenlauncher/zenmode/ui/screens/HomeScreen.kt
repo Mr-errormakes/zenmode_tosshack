@@ -83,6 +83,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import com.zenlauncher.zenmode.AppInfo
 import com.zenlauncher.zenmode.AppLogic
+import com.zenlauncher.zenmode.DistractingAppsRepository
+import com.zenlauncher.zenmode.FocusSession
 import com.zenlauncher.zenmode.MoodState
 import com.zenlauncher.zenmode.R
 import com.zenlauncher.zenmode.BuddyStats
@@ -95,8 +97,6 @@ import com.zenlauncher.zenmode.ui.theme.rsp
 import com.zenlauncher.zenmode.ui.theme.rdp
 import com.zenlauncher.zenmode.ui.components.StatsCardsRow
 import com.zenlauncher.zenmode.ui.components.WeightSpacer
-import com.zenlauncher.zenmode.BatchedNotificationsCard
-import com.zenlauncher.zenmode.ZenNotificationListenerService
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
@@ -124,12 +124,14 @@ fun HomeScreen(
     showSearch: Boolean,
     myLikes: Long = 0L,
     buddyLikes: Long = 0L,
+    focusSession: FocusSession? = null,
     onLikeClick: () -> Unit = {},
     onShowSearchChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
     onGoogleSearch: (String) -> Unit,
     onPhoneClick: () -> Unit,
     onLockClick: () -> Unit,
+    onFocusClick: () -> Unit = {},
     onInviteBuddyClick: () -> Unit,
     onSignInClick: () -> Unit,
     onBuddyCardClick: (() -> Unit)? = null,
@@ -141,7 +143,19 @@ fun HomeScreen(
     val colors = ZenTheme.colors
     val context = LocalContext.current
     var showStreakOverlay by remember { mutableStateOf(false) }
-    val batchedNotifications = ZenNotificationListenerService.batchedNotifications
+
+    // Filter distracting apps during a focus session
+    val visibleApps = remember(apps, focusSession) {
+        if (focusSession != null) {
+            apps.filter { app ->
+                !DistractingAppsRepository.isDistracting(
+                    context,
+                    context.packageManager,
+                    app.packageName.toString()
+                )
+            }
+        } else apps
+    }
 
     Box(
         modifier = Modifier
@@ -153,6 +167,14 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
+            // Focus session banner (when active)
+            if (focusSession != null) {
+                FocusBanner(
+                    session = focusSession,
+                    onFocusClick = onFocusClick
+                )
+            }
+
             WeightSpacer(1f)
 
             // Header
@@ -178,21 +200,11 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = 28.rdp)
             )
 
-            if (batchedNotifications.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                BatchedNotificationsCard(
-                    notifications = batchedNotifications,
-                    onClearAll = { ZenNotificationListenerService.clearBatchedNotifications(context) },
-                    onDismissItem = { id -> ZenNotificationListenerService.removeBatchedNotification(id, context) },
-                    modifier = Modifier.padding(horizontal = 28.rdp)
-                )
-            }
-
             WeightSpacer(1f)
 
-            // App Grid
+            // App Grid — shows only non-distracting apps during focus sessions
             AppGridPager(
-                apps = apps,
+                apps = visibleApps,
                 onAppClick = onAppClick,
                 onAppLongClick = onAppLongClick,
                 onAppInfoClick = onAppInfoClick,
@@ -206,7 +218,9 @@ fun HomeScreen(
             BottomDock(
                 onSettingsClick = onSettingsClick,
                 onSearchClick = { onShowSearchChange(true) },
-                onPhoneClick = onPhoneClick
+                onPhoneClick = onPhoneClick,
+                onFocusClick = onFocusClick,
+                isFocusActive = focusSession != null
             )
         }
 
@@ -423,7 +437,7 @@ private fun LockItem(onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(R.drawable.lock),
+                painter = painterResource(R.drawable.zm_ic_lock),
                 contentDescription = "Lock phone",
                 modifier = Modifier.size(36.dp)
             )
@@ -1050,13 +1064,49 @@ private fun StreakOverlay(
     }
 }
 
+@Composable
+private fun FocusBanner(session: FocusSession, onFocusClick: () -> Unit) {
+    val colors = ZenTheme.colors
+    val focusGreen = androidx.compose.ui.graphics.Color(0xFF4CAF50)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(focusGreen.copy(alpha = 0.12f))
+            .border(1.dp, focusGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .clickable { onFocusClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "🧘 Focus: ${session.remainingFormatted} left",
+            fontFamily = CabinetGrotesque,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.rsp,
+            color = focusGreen
+        )
+        Text(
+            text = "Tap to manage",
+            fontFamily = CabinetGrotesque,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.rsp,
+            color = focusGreen.copy(alpha = 0.7f)
+        )
+    }
+}
+
 // ── Bottom Dock ───────────────────────────────────────────────────
 
 @Composable
 private fun BottomDock(
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
-    onPhoneClick: () -> Unit
+    onPhoneClick: () -> Unit,
+    onFocusClick: () -> Unit = {},
+    isFocusActive: Boolean = false
 ) {
     val colors = ZenTheme.colors
 
@@ -1070,7 +1120,7 @@ private fun BottomDock(
     ) {
         // Settings gear
         Image(
-            painter = painterResource(R.drawable.ic_settings),
+            painter = painterResource(R.drawable.zm_ic_settings),
             contentDescription = "Settings",
             modifier = Modifier
                 .size(32.dp)
@@ -1082,7 +1132,7 @@ private fun BottomDock(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp)
                 .border(
                     width = 1.5.dp,
                     color = colors.borderFocus,
@@ -1101,6 +1151,16 @@ private fun BottomDock(
                 color = colors.textSecondary
             )
         }
+
+        // Focus session button (🎯 or 🟢 when active)
+        val focusGreen = androidx.compose.ui.graphics.Color(0xFF4CAF50)
+        Text(
+            text = if (isFocusActive) "🟢" else "🎯",
+            fontSize = 22.sp,
+            modifier = Modifier
+                .clickable { onFocusClick() }
+                .padding(4.dp)
+        )
 
         // Phone icon
         Image(

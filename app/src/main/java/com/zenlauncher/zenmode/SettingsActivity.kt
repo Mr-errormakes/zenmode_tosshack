@@ -59,18 +59,7 @@ class SettingsActivity : AppCompatActivity() {
                     onRateClick = { openPlayStore() },
                     onShareClick = { shareZenMode() },
                     onLogoutClick = { performLogout(repository) },
-                    onDeleteAccountClick = { performDeleteAccount(repository) },
-                    onSwitchLauncherClick = {
-                        try {
-                            startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS))
-                        } catch (e: Exception) {
-                            val intent = Intent(Intent.ACTION_MAIN).apply {
-                                addCategory(Intent.CATEGORY_HOME)
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            startActivity(Intent.createChooser(intent, "Select Home Launcher"))
-                        }
-                    }
+                    onDeleteAccountClick = { performDeleteAccount(repository) }
                 )
                 if (showDistractingSheet) {
                     DistractingAppsBottomSheet(onDismiss = { showDistractingSheet = false })
