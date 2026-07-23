@@ -553,6 +553,18 @@ private fun CountdownCircle(
     val colors = ZenTheme.colors
     val totalSeconds = AppConstants.COUNTDOWN_SECONDS
 
+    // Smooth mindful breathing pulse animation (3.5 second breath cycle)
+    val infiniteTransition = rememberInfiniteTransition(label = "mindful_breath_transition")
+    val breathScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breath_scale"
+    )
+
     // Pick the stage drawable based on elapsed seconds
     val aroundTimeRes = when {
         countdownFinished -> R.drawable.resistence_screen_around_time
@@ -577,10 +589,22 @@ private fun CountdownCircle(
         Image(
             painter = painterResource(aroundTimeRes),
             contentDescription = null,
-            modifier = Modifier.size(110.rdp)
+            modifier = Modifier
+                .size(110.rdp)
+                .rotate(if (!countdownFinished) breathScale * 10f - 10f else 0f)
         )
 
-        // Countdown number
+        // Mindful Breathing Glow Circle
+        Box(
+            modifier = Modifier
+                .size((90 * breathScale).dp)
+                .background(
+                    color = colors.borderFocus.copy(alpha = 0.15f * breathScale),
+                    shape = RoundedCornerShape(50)
+                )
+        )
+
+        // Countdown number using RedditMono to prevent layout shift
         Text(
             text = if (countdownFinished) AppConstants.COUNTDOWN_SECONDS.toString() else countdownSeconds.toString(),
             fontFamily = RedditMono,
@@ -612,7 +636,7 @@ private fun ResistenceBottomDock(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Settings
+        // Settings Action Icon (Uses textBrand / action-primary semantic color token)
         Image(
             painter = painterResource(R.drawable.ic_settings),
             contentDescription = "Settings",
@@ -622,7 +646,7 @@ private fun ResistenceBottomDock(
             colorFilter = ColorFilter.tint(colors.textBrand)
         )
 
-        // Skip message centered between icons
+        // Skip message centered between icons — Cabinet Grotesque for text, RedditMono for number
         Text(
             text = if (canSkip) {
                 buildAnnotatedString {
@@ -648,7 +672,7 @@ private fun ResistenceBottomDock(
             modifier = if (canSkip) Modifier.clickable { onSkipClick() } else Modifier
         )
 
-        // Phone
+        // Phone Action Icon (Uses textBrand / action-primary semantic color token)
         Image(
             painter = painterResource(R.drawable.ic_phone),
             contentDescription = "Phone",

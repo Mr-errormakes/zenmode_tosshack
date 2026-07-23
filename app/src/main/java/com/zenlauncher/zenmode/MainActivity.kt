@@ -22,6 +22,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import com.zenlauncher.zenmode.R
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -104,16 +105,20 @@ class MainActivity : AppCompatActivity() {
             val interval = AppConstants.STATS_SYNC_INTERVAL_MINUTES * 60 * 1000L
 
             if (now - lastProcessed > interval) {
-                val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
-                val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
-                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
-                    .build()
-                androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
-                    "ManualStatSync",
-                    androidx.work.ExistingWorkPolicy.REPLACE,
-                    syncRequest
-                )
-                repository.updateLastStatsProcessedTime(now)
+                try {
+                    val workerClass = Class.forName("com.zenlauncher.zenmode.internal.StatSyncWorker") as Class<out androidx.work.ListenableWorker>
+                    val syncRequest = androidx.work.OneTimeWorkRequest.Builder(workerClass)
+                        .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                        .build()
+                    androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
+                        "ManualStatSync",
+                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        syncRequest
+                    )
+                    repository.updateLastStatsProcessedTime(now)
+                } catch (_: ClassNotFoundException) {
+                    // StatSyncWorker only exists in the private module; skip in open-core builds
+                }
             }
         }
     }

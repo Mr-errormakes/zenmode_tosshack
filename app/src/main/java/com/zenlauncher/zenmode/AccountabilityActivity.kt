@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.ViewModelProvider
 import com.zenlauncher.zenmode.coreapi.UsageRepository
+import com.zenlauncher.zenmode.R
 import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
 import com.zenlauncher.zenmode.ui.screens.AccountabilityScreen
 import com.zenlauncher.zenmode.ui.theme.ZenTheme

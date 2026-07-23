@@ -34,7 +34,46 @@ class ZenAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No-op — service is used for global actions only
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val packageName = event.packageName?.toString() ?: return
+
+        // Skip system UI, system settings, Android launchers, and our own app package
+        if (packageName == applicationContext.packageName ||
+            packageName == "com.android.systemui" ||
+            packageName == "com.android.settings" ||
+            packageName == "com.google.android.apps.nexuslauncher" ||
+            packageName.contains("launcher") ||
+            packageName.startsWith("com.android.")
+        ) {
+            return
+        }
+
+        val repository = if (com.zenlauncher.zenmode.coreapi.services.ServiceLocator.isInitialized) {
+            val analyticsManager = com.zenlauncher.zenmode.coreapi.services.ServiceLocator.analyticsManager
+            com.zenlauncher.zenmode.coreapi.UsageRepository(applicationContext, analyticsManager)
+        } else {
+            // Fallback for mock initialization if ServiceLocator wasn't populated yet
+            val mockAnalytics = object : com.zenlauncher.zenmode.coreapi.analytics.AnalyticsManager {
+                override fun trackEvent(eventName: String, properties: Map<String, Any>?) {}
+                override fun identifyUser(userId: String, properties: Map<String, Any>?) {}
+                override fun reset() {}
+            }
+            com.zenlauncher.zenmode.coreapi.UsageRepository(applicationContext, mockAnalytics)
+        }
+
+        // Determine if the app being opened is a distracting/doom-scroll app
+        val isDistracting = DistractingAppsRepository.isDistracting(applicationContext, packageManager, packageName)
+
+        // Two interception modes:
+        // 1. Zen is LOCKED → intercept ALL non-system apps (first unlock of the day)
+        // 2. Zen is UNLOCKED but app is DISTRACTING → intercept with mindful pause
+        if (!repository.isZenUnlocked() || isDistracting) {
+            val intent = Intent(applicationContext, DelayedUnlockActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("TARGET_PACKAGE_NAME", packageName)
+            }
+            applicationContext.startActivity(intent)
+        }
     }
 
     override fun onInterrupt() {

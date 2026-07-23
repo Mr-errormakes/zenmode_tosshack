@@ -13,6 +13,7 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.lifecycleScope
 import com.zenlauncher.zenmode.coreapi.UsageRepository
+import com.zenlauncher.zenmode.R
 import com.zenlauncher.zenmode.coreapi.services.ServiceLocator
 import com.zenlauncher.zenmode.ui.screens.DistractingAppsBottomSheet
 import com.zenlauncher.zenmode.ui.screens.SettingsScreen

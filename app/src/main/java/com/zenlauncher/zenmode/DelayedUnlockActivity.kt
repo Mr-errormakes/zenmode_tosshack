@@ -125,6 +125,12 @@ class DelayedUnlockActivity : AppCompatActivity() {
         repository.setZenUnlockFlag(true)
 
         timer?.cancel()
+
+        // Launch main home launcher screen
+        val homeIntent = android.content.Intent(this, MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        startActivity(homeIntent)
         finish()
         if (android.os.Build.VERSION.SDK_INT >= 34) {
             overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
