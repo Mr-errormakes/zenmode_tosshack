@@ -35,13 +35,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -51,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.zenlauncher.zenmode.DistractingAppsRepository
 import com.zenlauncher.zenmode.R
-import com.zenlauncher.zenmode.ui.components.WeightSpacer
 import com.zenlauncher.zenmode.ui.theme.CabinetGrotesque
 import com.zenlauncher.zenmode.ui.theme.ZenTheme
 import com.zenlauncher.zenmode.ui.theme.rdp
@@ -76,8 +79,10 @@ fun loadDistractingAppItems(context: Context): List<DistractingAppItem> {
         addCategory(Intent.CATEGORY_LAUNCHER)
     }
     val activities = pm.queryIntentActivities(intent, 0)
-    val userSelected = DistractingAppsRepository.getUserSelected(context)
     val ownPackage = context.packageName
+    // Read prefs once outside the map loop
+    val userSelected = DistractingAppsRepository.getUserSelected(context)
+    val userDeselected = DistractingAppsRepository.getUserDeselected(context)
 
     return activities
         .map { it.activityInfo.packageName to it }
@@ -90,7 +95,8 @@ fun loadDistractingAppItems(context: Context): List<DistractingAppItem> {
                 packageName = pkg,
                 icon = resolveInfo.loadIcon(pm),
                 isForced = forced,
-                isSelected = forced || pkg in userSelected
+                // Selected if user explicitly picked it, OR it is forced AND not explicitly opted-out
+                isSelected = pkg in userSelected || (forced && pkg !in userDeselected)
             )
         }
         .sortedWith(compareByDescending<DistractingAppItem> { it.isForced }.thenBy { it.label.lowercase() })
@@ -189,10 +195,17 @@ fun DistractingAppsBottomSheet(onDismiss: () -> Unit) {
                     DistractingAppCell(
                         app = app,
                         onClick = {
-                            if (!app.isForced) {
+                            // All apps are now toggleable — forced apps can be opted out
+                            if (app.isSelected && app.isForced) {
+                                // Forced app being deselected → add to user-deselected list
+                                DistractingAppsRepository.addUserDeselected(context, app.packageName)
+                                DistractingAppsRepository.removeUserSelected(context, app.packageName)
+                            } else {
+                                // Regular toggle: remove from deselected if re-adding a forced one
+                                DistractingAppsRepository.removeUserDeselected(context, app.packageName)
                                 DistractingAppsRepository.toggleUserSelected(context, app.packageName)
-                                apps = loadDistractingAppItems(context)
                             }
+                            apps = loadDistractingAppItems(context)
                         }
                     )
                 }
@@ -206,19 +219,19 @@ private fun DistractingAppCell(app: DistractingAppItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(64.dp)
-            .clickable(enabled = !app.isForced, onClick = onClick),
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         val bitmap = remember(app.packageName) {
             app.icon.toBitmap(width = 128, height = 128).asImageBitmap()
         }
-        androidx.compose.foundation.Image(
+        Image(
             bitmap = bitmap,
             contentDescription = app.label,
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .alpha(if (app.isSelected) 1f else 0.55f)
+                .alpha(if (app.isSelected) 1f else 0.45f)
         )
         if (app.isSelected) {
             Box(
@@ -230,6 +243,46 @@ private fun DistractingAppCell(app: DistractingAppItem, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 CheckMark()
+            }
+        }
+        // Small lock badge on forced apps to hint they are recommended
+        if (app.isForced && app.isSelected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1A1A1A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(8.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    val sw = 1.dp.toPx()
+                    // Lock body
+                    drawRoundRect(
+                        color = Color(0xFF00FF41),
+                        topLeft = Offset(w * 0.1f, h * 0.45f),
+                        size = Size(w * 0.8f, h * 0.55f),
+                        cornerRadius = CornerRadius(2f),
+                        style = Stroke(width = sw)
+                    )
+                    // Lock shackle
+                    val path = Path().apply {
+                        moveTo(w * 0.3f, h * 0.45f)
+                        lineTo(w * 0.3f, h * 0.25f)
+                        cubicTo(w * 0.3f, h * 0.05f, w * 0.7f, h * 0.05f, w * 0.7f, h * 0.25f)
+                        lineTo(w * 0.7f, h * 0.45f)
+                    }
+                    drawPath(
+                        path = path,
+                        color = Color(0xFF00FF41),
+                        style = Stroke(
+                            width = sw,
+                            cap = StrokeCap.Round
+                        )
+                    )
+                }
             }
         }
     }

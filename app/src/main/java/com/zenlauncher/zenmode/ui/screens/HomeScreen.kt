@@ -95,6 +95,8 @@ import com.zenlauncher.zenmode.ui.theme.rsp
 import com.zenlauncher.zenmode.ui.theme.rdp
 import com.zenlauncher.zenmode.ui.components.StatsCardsRow
 import com.zenlauncher.zenmode.ui.components.WeightSpacer
+import com.zenlauncher.zenmode.ui.components.ZenQuickDock
+import com.zenlauncher.zenmode.ui.components.ZenIconTint
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
@@ -285,8 +287,8 @@ private fun AppGridPager(
 ) {
     val colors = ZenTheme.colors
     val coroutineScope = rememberCoroutineScope()
-    // Every page: 11 apps (lock is fixed outside pager, takes 1 slot visually)
-    val appsPerPage = 11
+    // Every page: 10 apps (lock + quick dock toggle take 2 fixed slots in the 4×3 grid)
+    val appsPerPage = 10
     val pages = remember(apps) { apps.chunked(appsPerPage) }
     val totalPages = pages.size.coerceAtLeast(1)
     val pagerState = rememberPagerState(pageCount = { totalPages })
@@ -324,6 +326,14 @@ private fun AppGridPager(
                         // Lock is first item on every page so it stays persistent
                         item {
                             LockItem(onClick = onLockClick)
+                        }
+                        // Quick Dock toggle — second slot, opens 18-icon zen navigation panel
+                        item {
+                            QuickDockToggleItem(
+                                onSettingsClick = {},
+                                onSearchClick = {},
+                                onLockClick = onLockClick
+                            )
                         }
                         items(appsInPage.size) { index ->
                             AppIconItem(
@@ -417,6 +427,67 @@ private fun LockItem(onClick: () -> Unit) {
     }
 }
 
+// ── Quick Dock Toggle (Second Grid Slot) ──────────────────────────
+
+@Composable
+private fun QuickDockToggleItem(
+    onSettingsClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    onLockClick: () -> Unit = {}
+) {
+    val colors = ZenTheme.colors
+    var showDock by remember { mutableStateOf(false) }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { showDock = !showDock }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(AppGridIconSize)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.bgSecondary),
+            contentAlignment = Alignment.Center
+        ) {
+            com.zenlauncher.zenmode.ui.components.ZenIconMore(
+                size = 28.dp,
+                tint = colors.textBrand
+            )
+        }
+    }
+
+    // The full dock panel appears as a dialog/overlay when toggled
+    if (showDock) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showDock = false }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.bgPrimary)
+                    .padding(16.dp)
+            ) {
+                ZenQuickDock(
+                    modifier = Modifier.fillMaxWidth(),
+                    onSettingsClick = {
+                        showDock = false
+                        onSettingsClick()
+                    },
+                    onSearchClick = {
+                        showDock = false
+                        onSearchClick()
+                    },
+                    onLockClick = {
+                        showDock = false
+                        onLockClick()
+                    }
+                )
+            }
+        }
+    }
+}
+
 // ── App Icon Item ─────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -428,7 +499,13 @@ private fun AppIconItem(
     onAppInfoClick: () -> Unit = {}
 ) {
     val view = LocalView.current
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+
+    // Apply monochrome zen-green tint to distracting app icons
+    val processedIcon = remember(appInfo.packageName, appInfo.icon) {
+        ZenIconTint.processIcon(context, appInfo.packageName, appInfo.icon)
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -447,14 +524,14 @@ private fun AppIconItem(
             contentAlignment = Alignment.Center
         ) {
             AndroidView(
-                factory = { context ->
-                    ImageView(context).apply {
+                factory = { ctx ->
+                    ImageView(ctx).apply {
                         scaleType = ImageView.ScaleType.FIT_XY
-                        setImageDrawable(appInfo.icon)
+                        setImageDrawable(processedIcon)
                     }
                 },
                 update = { imageView ->
-                    imageView.setImageDrawable(appInfo.icon)
+                    imageView.setImageDrawable(processedIcon)
                     imageView.scaleType = ImageView.ScaleType.FIT_XY
                 },
                 modifier = Modifier

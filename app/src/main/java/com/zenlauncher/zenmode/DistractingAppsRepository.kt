@@ -20,6 +20,7 @@ import org.json.JSONArray
 object DistractingAppsRepository {
     private const val PREFS = "zen_mode_stats"
     private const val KEY_USER_SELECTED = "distracting_apps_user"
+    private const val KEY_USER_DESELECTED = "distracting_apps_deselected"  // forced apps user opted out
 
     val FORCED_PACKAGES: Set<String> = setOf(
         "com.instagram.android",
@@ -78,6 +79,53 @@ object DistractingAppsRepository {
         return nowSelected
     }
 
-    fun isDistracting(ctx: Context, pm: PackageManager, pkg: String): Boolean =
-        isForced(pm, pkg) || pkg in getUserSelected(ctx)
+    /**
+     * Core distraction check used by ZenAccessibilityService to decide whether
+     * to show the resistance screen.
+     *
+     * Respects user opt-out: if the user explicitly unchecked a forced app in the
+     * distracting apps list, this returns false so the app opens freely.
+     */
+    fun isDistracting(ctx: Context, pm: PackageManager, pkg: String): Boolean {
+        // Respect explicit user opt-outs (even for forced/category apps)
+        if (pkg in getUserDeselected(ctx)) return false
+        return isForced(pm, pkg) || pkg in getUserSelected(ctx)
+    }
+
+    fun getUserDeselected(ctx: Context): Set<String> {
+        val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val json = prefs.getString(KEY_USER_DESELECTED, null) ?: return emptySet()
+        return try {
+            val array = JSONArray(json)
+            (0 until array.length()).map { array.getString(it) }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    fun addUserDeselected(ctx: Context, pkg: String) {
+        val current = getUserDeselected(ctx).toMutableSet()
+        current.add(pkg)
+        val array = JSONArray(current.toList())
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_USER_DESELECTED, array.toString())
+            .apply()
+    }
+
+    fun removeUserDeselected(ctx: Context, pkg: String) {
+        val current = getUserDeselected(ctx).toMutableSet()
+        current.remove(pkg)
+        val array = JSONArray(current.toList())
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_USER_DESELECTED, array.toString())
+            .apply()
+    }
+
+    fun removeUserSelected(ctx: Context, pkg: String) {
+        val current = getUserSelected(ctx).toMutableSet()
+        current.remove(pkg)
+        saveUserSelected(ctx, current)
+    }
 }

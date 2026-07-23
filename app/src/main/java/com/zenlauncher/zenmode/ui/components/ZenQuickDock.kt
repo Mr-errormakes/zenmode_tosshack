@@ -3,7 +3,6 @@ package com.zenlauncher.zenmode.ui.components
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
@@ -18,8 +17,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,7 +55,6 @@ data class QuickDockItem(
     val action: (Context) -> Unit
 )
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ZenQuickDock(
     modifier: Modifier = Modifier,
@@ -257,18 +253,23 @@ fun ZenQuickDock(
                     .background(colors.bgSecondary.copy(alpha = 0.9f))
                     .padding(12.dp)
             ) {
-                FlowRow(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    maxItemsInEachRow = 6
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    dockItems.forEach { item ->
-                        DockIconButton(
-                            label = item.label,
-                            icon = item.icon,
-                            onClick = { item.action(context) }
-                        )
+                    dockItems.chunked(6).forEach { rowItems ->
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            rowItems.forEach { item ->
+                                DockIconButton(
+                                    label = item.label,
+                                    icon = item.icon,
+                                    onClick = { item.action(context) }
+                                )
+                            }
+                        }
                     }
                 }
             }
