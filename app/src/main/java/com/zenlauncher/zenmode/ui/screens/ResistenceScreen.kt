@@ -553,21 +553,9 @@ private fun CountdownCircle(
     val colors = ZenTheme.colors
     val totalSeconds = AppConstants.COUNTDOWN_SECONDS
 
-    // Smooth mindful breathing pulse animation (3.5 second breath cycle)
-    val infiniteTransition = rememberInfiniteTransition(label = "mindful_breath_transition")
-    val breathScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1750, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "breath_scale"
-    )
-
     // Pick the stage drawable based on elapsed seconds
     val aroundTimeRes = when {
-        countdownFinished -> R.drawable.resistence_screen_around_time
+        countdownFinished || totalSeconds <= 0 -> R.drawable.resistence_screen_around_time
         else -> {
             val t2 = (totalSeconds * 2.0 / 7).toInt().coerceAtLeast(1)
             val t4 = (totalSeconds * 4.0 / 7).toInt().coerceAtLeast(2)
@@ -589,22 +577,10 @@ private fun CountdownCircle(
         Image(
             painter = painterResource(aroundTimeRes),
             contentDescription = null,
-            modifier = Modifier
-                .size(110.rdp)
-                .rotate(if (!countdownFinished) breathScale * 10f - 10f else 0f)
+            modifier = Modifier.size(110.rdp)
         )
 
-        // Mindful Breathing Glow Circle
-        Box(
-            modifier = Modifier
-                .size((90 * breathScale).dp)
-                .background(
-                    color = colors.borderFocus.copy(alpha = 0.15f * breathScale),
-                    shape = RoundedCornerShape(50)
-                )
-        )
-
-        // Countdown number using RedditMono to prevent layout shift
+        // Countdown number
         Text(
             text = if (countdownFinished) AppConstants.COUNTDOWN_SECONDS.toString() else countdownSeconds.toString(),
             fontFamily = RedditMono,
@@ -638,7 +614,7 @@ private fun ResistenceBottomDock(
     ) {
         // Settings
         Image(
-            painter = painterResource(R.drawable.ic_settings),
+            painter = painterResource(R.drawable.zm_ic_settings),
             contentDescription = "Settings",
             modifier = Modifier
                 .size(32.rdp)

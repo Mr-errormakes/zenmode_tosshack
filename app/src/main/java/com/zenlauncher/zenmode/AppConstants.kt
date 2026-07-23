@@ -1,6 +1,14 @@
 package com.zenlauncher.zenmode
 
 object AppConstants {
+    // Focus Session
+    const val FOCUS_PREFS = "zen_focus_session"
+    const val FOCUS_KEY_START_MS = "focus_start_ms"
+    const val FOCUS_KEY_DURATION_MS = "focus_duration_ms"
+    const val FOCUS_TIMER_CHANNEL_ID = "zen_focus_channel"
+    const val FOCUS_TIMER_NOTIFICATION_ID = 1001
+    val FOCUS_DURATION_OPTIONS_MIN = listOf(15, 25, 45, 60)
+
     const val THRESHOLD_HAPPY_MINUTES = 120
     const val THRESHOLD_NEUTRAL_MINUTES = 210
     const val GOAL_UNLOCKS_COUNT = 60
@@ -10,7 +18,7 @@ object AppConstants {
     const val MINDFULNESS_NEUTRAL_MIN_PERCENT = 40
 
     // Resistence Screen
-    const val COUNTDOWN_SECONDS = 7
+    const val COUNTDOWN_SECONDS = 0
     const val MAX_DAILY_SKIPS = 7
 
     // Worker
