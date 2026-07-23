@@ -87,7 +87,8 @@ fun SettingsScreen(
     onRateClick: () -> Unit,
     onShareClick: () -> Unit,
     onLogoutClick: () -> Unit = {},
-    onDeleteAccountClick: () -> Unit = {}
+    onDeleteAccountClick: () -> Unit = {},
+    onSwitchLauncherClick: () -> Unit = {}
 ) {
     val colors = ZenTheme.colors
     val context = LocalContext.current
@@ -126,7 +127,8 @@ fun SettingsScreen(
                 onNotificationBadgesClick = onNotificationBadgesClick,
                 onChangeDistractingAppsClick = onChangeDistractingAppsClick,
                 onAccountabilityPartnerClick = onAccountabilityPartnerClick,
-                onContributeClick = onContributeClick
+                onContributeClick = onContributeClick,
+                onSwitchLauncherClick = onSwitchLauncherClick
             )
 
             Spacer(modifier = Modifier.height(28.rdp))
@@ -437,7 +439,8 @@ private fun PersonaliseSection(
     onNotificationBadgesClick: () -> Unit,
     onChangeDistractingAppsClick: () -> Unit,
     onAccountabilityPartnerClick: () -> Unit,
-    onContributeClick: () -> Unit
+    onContributeClick: () -> Unit,
+    onSwitchLauncherClick: () -> Unit
 ) {
     val colors = ZenTheme.colors
 
@@ -501,6 +504,13 @@ private fun PersonaliseSection(
                 text = "Accountability partner settings",
                 color = colors.textBrand,
                 onClick = onAccountabilityPartnerClick
+            )
+
+            // Switch default home launcher
+            SettingsClickableItem(
+                text = "Exit ZenMode (Switch Launcher)",
+                color = colors.textBrand,
+                onClick = onSwitchLauncherClick
             )
 
             // Contribute zenmode (via GitHub)

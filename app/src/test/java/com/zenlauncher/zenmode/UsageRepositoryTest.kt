@@ -3,7 +3,10 @@ package com.zenlauncher.zenmode
 import android.content.Context
 import android.content.SharedPreferences
 import com.zenlauncher.zenmode.coreapi.UsageRepository
+import com.zenlauncher.zenmode.coreapi.UsageDao
+import com.zenlauncher.zenmode.coreapi.DailyUsageEntity
 import com.zenlauncher.zenmode.coreapi.analytics.AnalyticsManager
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.any
@@ -14,10 +17,18 @@ import org.mockito.kotlin.whenever
 
 class UsageRepositoryTest {
 
-    private fun createMockedRepository(): Triple<UsageRepository, SharedPreferences, SharedPreferences.Editor> {
+    data class TestContext(
+        val repository: UsageRepository,
+        val prefs: SharedPreferences,
+        val editor: SharedPreferences.Editor,
+        val usageDao: UsageDao
+    )
+
+    private fun createMockedRepository(): TestContext {
         val context = mock<Context>()
         val prefs = mock<SharedPreferences>()
         val editor = mock<SharedPreferences.Editor>()
+        val usageDao = mock<UsageDao>()
 
         whenever(context.getSharedPreferences(any(), any())).thenReturn(prefs)
         whenever(prefs.edit()).thenReturn(editor)
@@ -28,22 +39,20 @@ class UsageRepositoryTest {
         whenever(editor.remove(any())).thenReturn(editor)
 
         val analyticsManager = mock<AnalyticsManager>()
-        val repository = UsageRepository(context, analyticsManager)
-        return Triple(repository, prefs, editor)
+        val repository = UsageRepository(context, analyticsManager, usageDao)
+        return TestContext(repository, prefs, editor, usageDao)
     }
 
     @Test
-    fun `updateScreenTime increases total time`() {
-        val (repository, prefs, editor) = createMockedRepository()
+    fun `updateScreenTime increases total time`() = runBlocking {
+        val (repository, _, _, usageDao) = createMockedRepository()
 
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-        whenever(prefs.getString(eq("last_date_screentime"), any())).thenReturn(today)
-        whenever(prefs.getLong("daily_screen_time", 0)).thenReturn(1000L)
+        whenever(usageDao.getScreenTimeForDate(today)).thenReturn(DailyUsageEntity(today, 1000L))
 
         repository.updateScreenTime(5000L)
 
-        verify(editor).putLong("daily_screen_time", 6000L)
-        verify(editor).apply()
+        verify(usageDao).insert(DailyUsageEntity(today, 6000L))
     }
 
     @Test
@@ -97,7 +106,7 @@ class UsageRepositoryTest {
         repository.resetZenUnlockFlag()
         verify(editor).putBoolean("is_zen_unlocked", false)
 
-        whenever(prefs.getBoolean("is_zen_unlocked", true)).thenReturn(true)
+        whenever(prefs.getBoolean("is_zen_unlocked", false)).thenReturn(true)
         assertEquals(true, repository.isZenUnlocked())
     }
 

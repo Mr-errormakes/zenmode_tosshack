@@ -34,7 +34,29 @@ class ZenAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No-op — service is used for global actions only
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val packageName = event.packageName?.toString() ?: return
+
+        // Skip system UI, Android launcher/system packages, and our own app package
+        if (packageName == applicationContext.packageName ||
+            packageName == "com.android.systemui" ||
+            packageName == "com.google.android.apps.nexuslauncher" ||
+            packageName.startsWith("com.android.")
+        ) {
+            return
+        }
+
+        val analyticsManager = com.zenlauncher.zenmode.coreapi.services.ServiceLocator.analyticsManager
+        val repository = com.zenlauncher.zenmode.coreapi.UsageRepository(applicationContext, analyticsManager)
+
+        // If Zen Mode is NOT unlocked, intercept app launch and trigger DelayedUnlockActivity
+        if (!repository.isZenUnlocked()) {
+            val intent = Intent(applicationContext, DelayedUnlockActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("TARGET_PACKAGE_NAME", packageName)
+            }
+            applicationContext.startActivity(intent)
+        }
     }
 
     override fun onInterrupt() {
