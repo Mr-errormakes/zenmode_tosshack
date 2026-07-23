@@ -1,5 +1,6 @@
 package com.zenlauncher.zenmode
 
+import com.zenlauncher.zenmode.R
 import android.app.Service
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager

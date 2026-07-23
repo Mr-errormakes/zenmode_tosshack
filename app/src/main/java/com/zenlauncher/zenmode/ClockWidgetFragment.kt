@@ -1,5 +1,6 @@
 package com.zenlauncher.zenmode
 
+import com.zenlauncher.zenmode.R
 import androidx.fragment.app.Fragment
 import com.zenlauncher.zenmode.R
 
