@@ -95,6 +95,8 @@ import com.zenlauncher.zenmode.ui.theme.rsp
 import com.zenlauncher.zenmode.ui.theme.rdp
 import com.zenlauncher.zenmode.ui.components.StatsCardsRow
 import com.zenlauncher.zenmode.ui.components.WeightSpacer
+import com.zenlauncher.zenmode.BatchedNotificationsCard
+import com.zenlauncher.zenmode.ZenNotificationListenerService
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
@@ -137,7 +139,9 @@ fun HomeScreen(
     apps: List<AppInfo>
 ) {
     val colors = ZenTheme.colors
+    val context = LocalContext.current
     var showStreakOverlay by remember { mutableStateOf(false) }
+    val batchedNotifications = ZenNotificationListenerService.batchedNotifications
 
     Box(
         modifier = Modifier
@@ -173,6 +177,16 @@ fun HomeScreen(
                 onBuddyCardClick = onBuddyCardClick,
                 modifier = Modifier.padding(horizontal = 28.rdp)
             )
+
+            if (batchedNotifications.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                BatchedNotificationsCard(
+                    notifications = batchedNotifications,
+                    onClearAll = { ZenNotificationListenerService.clearBatchedNotifications(context) },
+                    onDismissItem = { id -> ZenNotificationListenerService.removeBatchedNotification(id, context) },
+                    modifier = Modifier.padding(horizontal = 28.rdp)
+                )
+            }
 
             WeightSpacer(1f)
 

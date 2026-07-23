@@ -1,5 +1,6 @@
 package com.zenlauncher.zenmode
 
+import com.zenlauncher.zenmode.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
