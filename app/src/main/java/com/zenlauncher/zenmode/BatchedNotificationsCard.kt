@@ -193,3 +193,10 @@ fun BatchedNotificationsCard(
         }
     }
 }
+
+data class BatchedNotification(
+    val id: String,
+    val title: String,
+    val text: String,
+    val timestamp: Long
+)
